@@ -3,599 +3,856 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Shift Workflow Widget</title>
-  <style>
-    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>Shift Workflow (Embed)</title>
 
-    body{
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* IMPORTANT for iframe height: do not force full-viewport height */
+    html, body {
+      height: auto;
+    }
+
+    body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      background:#f5f5f5;
-      padding: 12px;
-      overflow-x:hidden;
+      background: transparent; /* prevents big white block if iframe height > content */
+      overflow-x: hidden;
       touch-action: pan-y;
     }
 
-    /* Embed-friendly widget sizing */
-    .mobile-container{
-      max-width: 380px;            /* smaller than original 414px */
+    /* Card wrapper so only the app itself is white (not the whole iframe) */
+    .mobile-container {
+      max-width: 380px;
       margin: 0 auto;
-      background: #fff;
-      border-radius: 14px;
-      box-shadow: 0 0 18px rgba(0,0,0,0.12);
-      overflow: hidden;
-      min-height: 640px;           /* shorter than 100vh */
-      max-height: 720px;
-      display:flex;
-      flex-direction:column;
-    }
-
-    /* Remove top navigation */
-    .mobile-header{ display:none; }
-
-    .view-container{
+      background: transparent; /* keep transparent; the card below is white */
+      min-height: 0;           /* override original min-height:100vh */
+      height: auto;
+      box-shadow: none;
       position: relative;
-      width:100%;
-      flex:1;
-      overflow-y:auto;
+      padding: 12px;           /* breathing room inside the iframe */
     }
 
-    .view{ display:none; animation: slideIn 0.25s ease-out; }
-    .view.active{ display:block; }
-
-    @keyframes slideIn{
-      from{ opacity:0; transform: translateX(12px); }
-      to  { opacity:1; transform: translateX(0); }
+    .app-card {
+      background: white;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 0 18px rgba(0,0,0,0.12);
     }
 
-    /* Compact Home */
-    .welcome-section{
-      background:#2563a8;
-      color:#fff;
-      padding: 14px 14px 12px;
-      text-align:left;
+    /* Header (keep simple; no menu/search to avoid non-shift modules) */
+    .mobile-header {
+      background: #2563a8;
+      color: white;
+      padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
-    .welcome-title{ font-size: 16px; font-weight: 800; margin-bottom: 4px; }
-    .store-notice{ font-size: 12px; opacity: 0.92; }
 
-    .menu-grid{
-      display:grid;
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .back-button {
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 8px;
+      user-select: none;
+    }
+
+    .header-title {
+      font-size: 15px;
+      font-weight: 800;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0.95;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    /* View container: no forced scrolling height; let document shrink-wrap */
+    .view-container {
+      position: relative;
+      width: 100%;
+      overflow: visible; /* important for correct height measurement in iframe */
+    }
+
+    .view {
+      display: none;
+      animation: slideIn 0.25s ease-out;
+    }
+
+    .view.active {
+      display: block;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(12px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .content-wrapper {
+      padding-bottom: 10px;
+    }
+
+    /* HOME VIEW (small landing) */
+    .welcome-section {
+      background: #2563a8;
+      color: white;
+      padding: 14px;
+      text-align: left;
+    }
+
+    .welcome-title {
+      font-size: 16px;
+      font-weight: 900;
+      margin-bottom: 4px;
+    }
+
+    .store-notice {
+      font-size: 12px;
+      opacity: 0.92;
+    }
+
+    .menu-grid {
+      display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 10px;
       padding: 12px;
-      background:#fff;
+      background: white;
     }
-    .menu-item{
-      background:#fff;
+
+    .menu-item {
+      background: white;
       border: 1px solid #eee;
       border-radius: 12px;
       padding: 14px 10px;
-      text-align:center;
-      cursor:pointer;
+      text-align: center;
+      cursor: pointer;
       transition: background 0.2s;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       gap: 10px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.06);
       position: relative;
+      user-select: none;
     }
-    .menu-item:active{ background:#f5f5f5; }
-    .menu-icon-box{
+
+    .menu-item:active {
+      background: #f5f5f5;
+    }
+
+    .menu-icon-box {
       width: 46px;
       height: 46px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-size: 26px;
     }
-    .menu-label{ font-size: 13px; font-weight: 800; color:#333; }
 
-    .badge{
-      position:absolute;
+    .menu-label {
+      font-size: 13px;
+      font-weight: 900;
+      color: #333;
+    }
+
+    .badge {
+      position: absolute;
       top: 10px;
       right: 10px;
-      background:#e31837;
-      color:#fff;
+      background: #e31837;
+      color: white;
       border-radius: 999px;
       padding: 2px 8px;
       font-size: 12px;
       font-weight: 900;
     }
 
-    /* Shared content wrapper */
-    .content-wrapper{ padding-bottom: 16px; }
-
-    /* Schedule/Timecard list styling (from original, tightened) */
-    .timecard-date-header{
-      background:#f8f9fa;
+    /* Shared list styles (schedule/timecard) */
+    .timecard-date-header {
+      background: #f8f9fa;
       padding: 12px;
-      text-align:center;
+      text-align: center;
       border-bottom: 1px solid #e0e0e0;
     }
-    .timecard-date{ font-size: 15px; font-weight: 800; color:#333; }
 
-    .shift-list{ padding: 10px; }
-    .shift-item{
-      background:#fff;
+    .timecard-date {
+      font-size: 15px;
+      font-weight: 900;
+      color: #333;
+    }
+
+    .shift-list {
+      padding: 10px;
+    }
+
+    .shift-item {
+      background: white;
       margin-bottom: 10px;
       border-radius: 10px;
       padding: 12px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.08);
-      cursor:pointer;
+      cursor: pointer;
     }
-    .shift-header{
-      display:flex;
-      align-items:center;
+
+    .shift-header {
+      display: flex;
+      align-items: center;
       gap: 10px;
       margin-bottom: 10px;
       padding-bottom: 10px;
       border-bottom: 1px solid #e9e9e9;
     }
-    .shift-icon{ font-size: 20px; width: 26px; }
-    .shift-type{ font-size: 14px; font-weight: 800; color:#333; }
-    .time-row{
-      display:flex;
-      justify-content:space-between;
+
+    .shift-icon {
+      font-size: 20px;
+      width: 26px;
+    }
+
+    .shift-type {
+      font-size: 14px;
+      font-weight: 900;
+      color: #333;
+    }
+
+    .time-row {
+      display: flex;
+      justify-content: space-between;
       padding: 6px 0;
       font-size: 13px;
     }
-    .time-label{ color:#666; }
-    .time-value{ font-weight:800; color:#333; }
 
-    /* Buttons reused from original */
-    .btn-action{
-      flex:1;
+    .time-label {
+      color: #666;
+    }
+
+    .time-value {
+      font-weight: 900;
+      color: #333;
+    }
+
+    /* Buttons */
+    .btn-action {
+      flex: 1;
       padding: 10px;
-      border:none;
+      border: none;
       border-radius: 8px;
       font-size: 13px;
       font-weight: 900;
-      cursor:pointer;
+      cursor: pointer;
     }
-    .btn-view{ background:#2563a8; color:#fff; }
-    .btn-cancel-request{ background:#f5f5f5; color:#666; border:1px solid #ddd; }
 
-    .btn-cancel{
-      background:#f5f5f5;
-      color:#666;
-      border:none;
+    .btn-view {
+      background: #2563a8;
+      color: white;
+    }
+
+    .btn-cancel-request {
+      background: #f5f5f5;
+      color: #666;
+      border: 1px solid #ddd;
+    }
+
+    .btn-cancel {
+      background: #f5f5f5;
+      color: #666;
+      border: none;
       padding: 12px;
       border-radius: 10px;
       font-size: 14px;
       font-weight: 900;
-      cursor:pointer;
-      width:100%;
+      cursor: pointer;
+      width: 100%;
     }
-    .btn-save{
-      background:#2563a8;
-      color:#fff;
-      border:none;
+
+    .btn-save {
+      background: #2563a8;
+      color: white;
+      border: none;
       padding: 12px;
       border-radius: 10px;
       font-size: 14px;
       font-weight: 900;
-      cursor:pointer;
-      width:100%;
+      cursor: pointer;
+      width: 100%;
     }
 
-    /* Shift Requests (kept) */
-    .shift-requests-header{
-      background:#f8f9fa;
+    /* Shift Requests */
+    .shift-requests-header {
+      background: #f8f9fa;
       padding: 12px;
       border-bottom: 1px solid #e0e0e0;
     }
-    .shift-requests-title{
+
+    .shift-requests-title {
       font-size: 18px;
       font-weight: 900;
       margin-bottom: 12px;
-      color:#333;
+      color: #333;
     }
-    .request-type-tabs{ display:flex; gap:10px; margin-bottom: 12px; }
-    .request-type-tab{
-      flex:1;
-      padding:10px;
-      background:#fff;
-      border:2px solid #ddd;
+
+    .request-type-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .request-type-tab {
+      flex: 1;
+      padding: 10px;
+      background: white;
+      border: 2px solid #ddd;
       border-radius: 10px;
-      text-align:center;
-      cursor:pointer;
+      text-align: center;
+      cursor: pointer;
       font-size: 13px;
       font-weight: 900;
+      transition: all 0.2s;
+      user-select: none;
     }
-    .request-type-tab.active{ background:#2563a8; color:#fff; border-color:#2563a8; }
 
-    .create-request-btn{
-      width:100%;
-      background:#e31837;
-      color:#fff;
-      border:none;
+    .request-type-tab.active {
+      background: #2563a8;
+      color: white;
+      border-color: #2563a8;
+    }
+
+    .create-request-btn {
+      width: 100%;
+      background: #e31837;
+      color: white;
+      border: none;
       padding: 12px;
       border-radius: 10px;
       font-size: 15px;
       font-weight: 900;
-      cursor:pointer;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      gap:10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
       margin-bottom: 10px;
     }
 
-    .shift-request-list{ padding: 12px; }
-    .shift-request-item{
-      background:#fff;
-      border:1px solid #e0e0e0;
+    .shift-request-list {
+      padding: 12px;
+    }
+
+    .shift-request-item {
+      background: white;
+      border: 1px solid #e0e0e0;
       border-radius: 10px;
       padding: 12px;
       margin-bottom: 12px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
-    .request-header{ display:flex; justify-content:space-between; align-items:start; margin-bottom: 10px; }
-    .request-type-label{ font-size: 15px; font-weight: 900; color:#333; }
-    .request-status{ padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 900; }
-    .status-pending{ background:#fff3e0; color:#f57c00; }
-    .status-approved{ background:#e8f5e9; color:#2e7d32; }
-    .status-denied{ background:#ffebee; color:#c62828; }
 
-    .request-details{ display:flex; flex-direction:column; gap: 8px; margin-bottom: 10px; }
-    .request-detail-row{ display:flex; justify-content:space-between; font-size: 13px; }
-    .detail-label-req{ color:#666; }
-    .detail-value-req{ color:#333; font-weight:900; }
+    .request-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 10px;
+      gap: 10px;
+    }
 
-    .request-notes{
-      background:#f8f9fa;
+    .request-type-label {
+      font-size: 15px;
+      font-weight: 900;
+      color: #333;
+    }
+
+    .request-status {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .status-pending { background: #fff3e0; color: #f57c00; }
+    .status-approved { background: #e8f5e9; color: #2e7d32; }
+    .status-denied { background: #ffebee; color: #c62828; }
+
+    .request-details {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .request-detail-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      gap: 10px;
+    }
+
+    .detail-label-req { color: #666; }
+    .detail-value-req { color: #333; font-weight: 900; }
+
+    .request-notes {
+      background: #f8f9fa;
       padding: 10px;
       border-radius: 8px;
       font-size: 13px;
-      color:#666;
+      color: #666;
       margin-bottom: 10px;
       line-height: 1.4;
     }
-    .request-actions{ display:flex; gap: 10px; }
 
-    /* New Request Form (kept) */
-    .request-form{ padding: 12px; }
-    .form-group{ margin-bottom: 14px; }
-    .form-label{ display:block; font-size: 13px; font-weight: 900; color:#333; margin-bottom: 8px; }
-    .form-input, .form-select, .form-textarea{
-      width:100%;
+    .request-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    /* New Request Form */
+    .request-form {
+      padding: 12px;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 900;
+      color: #333;
+      margin-bottom: 8px;
+    }
+
+    .form-input, .form-select, .form-textarea {
+      width: 100%;
       padding: 12px;
       border: 1px solid #ddd;
       border-radius: 10px;
       font-size: 14px;
-      background:#fff;
+      background: white;
     }
-    .form-select{
-      appearance:none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
-      background-repeat:no-repeat;
-      background-position:right 12px center;
-    }
-    .form-textarea{ min-height: 90px; resize: vertical; }
-    .form-actions{ display:flex; gap: 10px; margin-top: 12px; }
-    .form-actions .btn-cancel, .form-actions .btn-save{ width:auto; flex:1; }
 
-    /* Time Entry (kept) */
-    .time-entry-header{
-      background:#f8f9fa;
+    .form-select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+    }
+
+    .form-textarea {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .form-actions .btn-cancel,
+    .form-actions .btn-save {
+      width: auto;
+      flex: 1;
+    }
+
+    /* Time Entry */
+    .time-entry-header {
+      background: #f8f9fa;
       padding: 12px;
       border-bottom: 1px solid #e0e0e0;
     }
-    .time-entry-title{ font-size: 16px; font-weight: 900; }
-    .time-picker-display{
-      background:#fff;
+
+    .time-entry-title {
+      font-size: 16px;
+      font-weight: 900;
+    }
+
+    .time-picker-display {
+      background: white;
       padding: 26px 14px;
-      text-align:center;
+      text-align: center;
       border-radius: 10px;
       margin: 12px;
       border: 1px solid #eee;
     }
-    .time-display-large{ font-size: 42px; font-weight: 300; color:#333; margin-bottom: 14px; }
-    .period-selector{ display:flex; gap: 10px; justify-content:center; }
-    .period-btn{
+
+    .time-display-large {
+      font-size: 42px;
+      font-weight: 300;
+      color: #333;
+      margin-bottom: 14px;
+    }
+
+    .period-selector {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .period-btn {
       padding: 10px 18px;
       border: 2px solid #ddd;
-      background:#fff;
+      background: white;
       border-radius: 10px;
       font-size: 14px;
       font-weight: 900;
-      cursor:pointer;
+      cursor: pointer;
       transition: all 0.2s;
+      user-select: none;
     }
-    .period-btn.active{ background:#2563a8; color:#fff; border-color:#2563a8; }
 
-    .number-pad{
-      display:grid;
+    .period-btn.active {
+      background: #2563a8;
+      color: white;
+      border-color: #2563a8;
+    }
+
+    .number-pad {
+      display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 1px;
-      background:#e0e0e0;
+      background: #e0e0e0;
       margin: 0 12px 12px;
     }
-    .number-key{
-      background:#fff;
+
+    .number-key {
+      background: white;
       padding: 16px;
-      text-align:center;
+      text-align: center;
       font-size: 22px;
-      cursor:pointer;
-      user-select:none;
+      cursor: pointer;
+      user-select: none;
     }
 
-    .entry-actions{ display:flex; gap: 10px; padding: 12px; }
-    .entry-actions .btn-cancel, .entry-actions .btn-save{ width:auto; flex:1; }
+    .entry-actions {
+      display: flex;
+      gap: 10px;
+      padding: 12px;
+    }
+
+    .entry-actions .btn-cancel,
+    .entry-actions .btn-save {
+      width: auto;
+      flex: 1;
+    }
   </style>
 </head>
 
 <body>
   <div class="mobile-container">
-    <div class="view-container">
+    <div class="app-card">
 
-      <!-- HOME (small landing screen) -->
-      <div id="home-view" class="view active">
-        <div class="content-wrapper">
-          <div class="welcome-section">
-            <div class="welcome-title">Shift Workflow</div>
-            <div class="store-notice">Embedded demo flow (Reflexis-like).</div>
-          </div>
-
-          <div class="menu-grid">
-            <div class="menu-item" onclick="navigateTo('schedule')">
-              <div class="menu-icon-box">📅</div>
-              <div class="menu-label">Schedule</div>
-            </div>
-
-            <div class="menu-item" onclick="navigateTo('timecard')">
-              <div class="menu-icon-box">🕐</div>
-              <div class="menu-label">Timecard</div>
-            </div>
-
-            <div class="menu-item" onclick="navigateTo('time-entry')">
-              <div class="menu-icon-box">✍️</div>
-              <div class="menu-label">Time Entry</div>
-            </div>
-
-            <div class="menu-item" onclick="navigateTo('shift-requests')">
-              <span class="badge">2</span>
-              <div class="menu-icon-box">📋</div>
-              <div class="menu-label">Shift Requests</div>
-            </div>
-          </div>
+      <!-- Header -->
+      <div class="mobile-header">
+        <div class="header-left">
+          <span class="back-button" id="back-btn" style="display:none;">‹</span>
+          <span class="header-title" id="header-title">Shift Workflow</span>
+        </div>
+        <div class="header-right">
+          <span id="header-subtitle">Embedded demo</span>
         </div>
       </div>
 
-      <!-- SCHEDULE -->
-      <div id="schedule-view" class="view">
-        <div class="content-wrapper">
-          <div class="timecard-date-header">
-            <div class="timecard-date">Week of May 30, 2026</div>
+      <!-- View Container -->
+      <div class="view-container">
+
+        <!-- Home View -->
+        <div id="home-view" class="view active">
+          <div class="content-wrapper">
+            <div class="welcome-section">
+              <div class="welcome-title">Shift Workflow</div>
+              <div class="store-notice">Shift Management.</div>
+            </div>
+
+            <div class="menu-grid">
+              <div class="menu-item" onclick="navigateTo('schedule')">
+                <div class="menu-icon-box">📅</div>
+                <div class="menu-label">Schedule</div>
+              </div>
+
+              <div class="menu-item" onclick="navigateTo('timecard')">
+                <div class="menu-icon-box">🕐</div>
+                <div class="menu-label">Timecard</div>
+              </div>
+
+              <div class="menu-item" onclick="navigateTo('time-entry')">
+                <div class="menu-icon-box">✍️</div>
+                <div class="menu-label">Time Entry</div>
+              </div>
+
+              <div class="menu-item" onclick="navigateTo('shift-requests')">
+                <span class="badge">2</span>
+                <div class="menu-icon-box">📋</div>
+                <div class="menu-label">Shift Requests</div>
+              </div>
+            </div>
           </div>
+        </div>
 
-          <div class="shift-list">
-            <div class="shift-item" onclick="openShiftDetail('mon')">
-              <div class="shift-header">
-                <span class="shift-icon">🗓️</span>
-                <span class="shift-type">Mon • Store (8)</span>
-              </div>
-              <div class="time-row"><span class="time-label">Shift</span><span class="time-value">8:00 AM – 4:00 PM</span></div>
-              <div class="time-row"><span class="time-label">Role</span><span class="time-value">Store Manager</span></div>
+        <!-- Schedule View -->
+        <div id="schedule-view" class="view">
+          <div class="content-wrapper">
+            <div class="timecard-date-header">
+              <div class="timecard-date">Week of May 30, 2026</div>
             </div>
 
-            <div class="shift-item" onclick="openShiftDetail('tue')">
-              <div class="shift-header">
-                <span class="shift-icon">🗓️</span>
-                <span class="shift-type">Tue • Store (8)</span>
+            <div class="shift-list">
+              <div class="shift-item" onclick="openShiftDetail('mon')">
+                <div class="shift-header">
+                  <span class="shift-icon">🗓️</span>
+                  <span class="shift-type">Mon • Store (8)</span>
+                </div>
+                <div class="time-row"><span class="time-label">Shift</span><span class="time-value">8:00 AM – 4:00 PM</span></div>
+                <div class="time-row"><span class="time-label">Role</span><span class="time-value">Store Manager</span></div>
               </div>
-              <div class="time-row"><span class="time-label">Shift</span><span class="time-value">10:00 AM – 6:00 PM</span></div>
-              <div class="time-row"><span class="time-label">Role</span><span class="time-value">Store Manager</span></div>
+
+              <div class="shift-item" onclick="openShiftDetail('tue')">
+                <div class="shift-header">
+                  <span class="shift-icon">🗓️</span>
+                  <span class="shift-type">Tue • Store (8)</span>
+                </div>
+                <div class="time-row"><span class="time-label">Shift</span><span class="time-value">10:00 AM – 6:00 PM</span></div>
+                <div class="time-row"><span class="time-label">Role</span><span class="time-value">Store Manager</span></div>
+              </div>
+
+              <div class="shift-item" onclick="openShiftDetail('fri')">
+                <div class="shift-header">
+                  <span class="shift-icon">🗓️</span>
+                  <span class="shift-type">Fri • Store (8)</span>
+                </div>
+                <div class="time-row"><span class="time-label">Shift</span><span class="time-value">8:00 AM – 4:00 PM</span></div>
+                <div class="time-row"><span class="time-label">Role</span><span class="time-value">Store Manager</span></div>
+
+                <div style="margin-top:10px; display:flex; gap:10px;">
+                  <button class="btn-action btn-view" style="flex:1;" onclick="event.stopPropagation(); quickSwap()">Swap</button>
+                  <button class="btn-action btn-cancel-request" style="flex:1;" onclick="event.stopPropagation(); requestCoverage()">Need Coverage</button>
+                </div>
+              </div>
+
+              <div style="padding: 0 10px 10px;">
+                <button class="btn-cancel" onclick="navigateTo('home')">Back to Home</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Timecard View -->
+        <div id="timecard-view" class="view">
+          <div class="content-wrapper">
+            <div class="timecard-date-header">
+              <div class="timecard-date">22 May 26</div>
             </div>
 
-            <div class="shift-item" onclick="openShiftDetail('fri')">
-              <div class="shift-header">
-                <span class="shift-icon">🗓️</span>
-                <span class="shift-type">Fri • Store (8)</span>
+            <div class="shift-list">
+              <div class="shift-item">
+                <div class="shift-header"><span class="shift-icon">🕐</span><span class="shift-type">Shift Start</span></div>
+                <div class="time-row"><span class="time-label">Scheduled</span><span class="time-value">-</span></div>
               </div>
-              <div class="time-row"><span class="time-label">Shift</span><span class="time-value">8:00 AM – 4:00 PM</span></div>
-              <div class="time-row"><span class="time-label">Role</span><span class="time-value">Store Manager</span></div>
 
-              <div style="margin-top:10px; display:flex; gap:10px;">
-                <button class="btn-action btn-view" style="flex:1;" onclick="event.stopPropagation(); quickSwap()">Swap</button>
-                <button class="btn-action btn-cancel-request" style="flex:1;" onclick="event.stopPropagation(); requestCoverage()">Need Coverage</button>
+              <div class="shift-item">
+                <div class="shift-header"><span class="shift-icon">🕐</span><span class="shift-type">Shift End</span></div>
+                <div class="time-row"><span class="time-label">Scheduled</span><span class="time-value">-</span></div>
+              </div>
+
+              <div class="shift-item">
+                <div class="shift-header"><span class="shift-icon">🍽️</span><span class="shift-type">Meal Start</span></div>
+                <div class="time-row"><span class="time-label">Scheduled</span><span class="time-value">-</span></div>
+              </div>
+
+              <div class="shift-item">
+                <div class="shift-header"><span class="shift-icon">🍽️</span><span class="shift-type">Meal End</span></div>
+                <div class="time-row"><span class="time-label">Scheduled</span><span class="time-value">-</span></div>
+              </div>
+
+              <div style="padding: 0 10px 10px;">
+                <button class="btn-cancel" onclick="navigateTo('home')">Back to Home</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Time Entry View -->
+        <div id="time-entry-view" class="view">
+          <div class="content-wrapper">
+            <div class="time-entry-header">
+              <div class="time-entry-title">Add Time Off</div>
+            </div>
+
+            <div class="time-picker-display">
+              <div class="time-display-large" id="time-display">9:30</div>
+              <div class="period-selector">
+                <button class="period-btn active" onclick="togglePeriod(this, 'am')">am</button>
+                <button class="period-btn" onclick="togglePeriod(this, 'pm')">pm</button>
               </div>
             </div>
 
-            <div style="padding: 0 10px 10px;">
+            <div class="number-pad">
+              <div class="number-key" onclick="addNumber('1')">1</div>
+              <div class="number-key" onclick="addNumber('2')">2</div>
+              <div class="number-key" onclick="addNumber('3')">3</div>
+              <div class="number-key" onclick="addNumber('4')">4</div>
+              <div class="number-key" onclick="addNumber('5')">5</div>
+              <div class="number-key" onclick="addNumber('6')">6</div>
+              <div class="number-key" onclick="addNumber('7')">7</div>
+              <div class="number-key" onclick="addNumber('8')">8</div>
+              <div class="number-key" onclick="addNumber('9')">9</div>
+              <div class="number-key" onclick="addNumber('00')">00</div>
+              <div class="number-key" onclick="addNumber('0')">0</div>
+              <div class="number-key" onclick="addNumber(':')">:</div>
+            </div>
+
+            <div class="entry-actions">
+              <button class="btn-cancel" onclick="navigateTo('home')">Cancel</button>
+              <button class="btn-save" onclick="saveTime()">Save</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Shift Requests View -->
+        <div id="shift-requests-view" class="view">
+          <div class="content-wrapper">
+            <div class="shift-requests-header">
+              <div class="shift-requests-title">Shift Requests</div>
+
+              <div class="request-type-tabs">
+                <div class="request-type-tab active" onclick="switchRequestTab('my-requests', this)">My Requests</div>
+                <div class="request-type-tab" onclick="switchRequestTab('team-requests', this)">Team Requests</div>
+              </div>
+
+              <button class="create-request-btn" onclick="showNewRequestForm()">
+                <span>+</span><span>Create New Request</span>
+              </button>
+
               <button class="btn-cancel" onclick="navigateTo('home')">Back to Home</button>
             </div>
+
+            <div id="my-requests-list" class="shift-request-list">
+              <div class="shift-request-item">
+                <div class="request-header">
+                  <div class="request-type-label">Shift Swap Request</div>
+                  <div class="request-status status-pending">Pending</div>
+                </div>
+
+                <div class="request-details">
+                  <div class="request-detail-row"><span class="detail-label-req">Date:</span><span class="detail-value-req">June 5, 2026</span></div>
+                  <div class="request-detail-row"><span class="detail-label-req">Original Shift:</span><span class="detail-value-req">8:00 AM - 4:00 PM</span></div>
+                  <div class="request-detail-row"><span class="detail-label-req">Swap With:</span><span class="detail-value-req">Sarah Johnson</span></div>
+                </div>
+
+                <div class="request-notes">Need to attend a family event. Sarah has agreed to swap shifts.</div>
+
+                <div class="request-actions">
+                  <button class="btn-action btn-view" onclick="viewRequestDetail('swap-1')">View Details</button>
+                  <button class="btn-action btn-cancel-request" onclick="cancelRequest('swap-1')">Cancel</button>
+                </div>
+              </div>
+            </div>
+
+            <div id="team-requests-list" class="shift-request-list" style="display:none;">
+              <div class="shift-request-item">
+                <div class="request-header">
+                  <div class="request-type-label">Coverage Needed - Mike Chen</div>
+                  <div class="request-status status-pending">Open</div>
+                </div>
+
+                <div class="request-details">
+                  <div class="request-detail-row"><span class="detail-label-req">Date:</span><span class="detail-value-req">May 29, 2026</span></div>
+                  <div class="request-detail-row"><span class="detail-label-req">Shift:</span><span class="detail-value-req">10:00 AM - 6:00 PM</span></div>
+                  <div class="request-detail-row"><span class="detail-label-req">Dept:</span><span class="detail-value-req">Pharmacy</span></div>
+                </div>
+
+                <div class="request-notes">Mike needs coverage for family matter. Overtime available.</div>
+
+                <div class="request-actions">
+                  <button class="btn-action btn-view" style="background:#2e7d32;" onclick="pickupShift('team-coverage-1')">Pick Up Shift</button>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
-      </div>
 
-      <!-- TIMECARD -->
-      <div id="timecard-view" class="view">
-        <div class="content-wrapper">
-          <div class="timecard-date-header">
-            <div class="timecard-date">22 May 26</div>
-          </div>
-
-          <div class="shift-list">
-            <div class="shift-item">
-              <div class="shift-header"><span class="shift-icon">🕐</span><span class="shift-type">Shift Start</span></div>
-              <div class="time-row"><span class="time-label">Scheduled</span><span class="time-value">-</span></div>
+        <!-- New Request View -->
+        <div id="new-request-view" class="view">
+          <div class="content-wrapper">
+            <div class="shift-requests-header">
+              <div class="shift-requests-title">New Shift Request</div>
+              <button class="btn-cancel" onclick="navigateTo('shift-requests')">Back to Requests</button>
             </div>
 
-            <div class="shift-item">
-              <div class="shift-header"><span class="shift-icon">🕐</span><span class="shift-type">Shift End</span></div>
-              <div class="time-row"><span class="time-label">Scheduled</span><span class="time-value">-</span></div>
-            </div>
+            <form class="request-form" id="new-request-form" onsubmit="event.preventDefault(); submitNewRequest();">
+              <div class="form-group">
+                <label class="form-label">Request Type</label>
+                <select class="form-select" id="request-type">
+                  <option value="">Select request type...</option>
+                  <option value="time-off">Time Off Request</option>
+                  <option value="shift-swap">Shift Swap</option>
+                  <option value="coverage">Need Coverage</option>
+                  <option value="schedule-change">Schedule Change</option>
+                </select>
+              </div>
 
-            <div class="shift-item">
-              <div class="shift-header"><span class="shift-icon">🍽️</span><span class="shift-type">Meal Start</span></div>
-              <div class="time-row"><span class="time-label">Scheduled</span><span class="time-value">-</span></div>
-            </div>
+              <div class="form-group">
+                <label class="form-label">Date</label>
+                <input type="date" class="form-input" id="request-date" value="2026-06-01" />
+              </div>
 
-            <div class="shift-item">
-              <div class="shift-header"><span class="shift-icon">🍽️</span><span class="shift-type">Meal End</span></div>
-              <div class="time-row"><span class="time-label">Scheduled</span><span class="time-value">-</span></div>
-            </div>
+              <div class="form-group">
+                <label class="form-label">Shift Time</label>
+                <select class="form-select" id="shift-time">
+                  <option value="">Select shift...</option>
+                  <option value="morning">Morning 6:00 AM - 2:00 PM</option>
+                  <option value="day">Day 8:00 AM - 4:00 PM</option>
+                  <option value="evening">Evening 2:00 PM - 10:00 PM</option>
+                  <option value="night">Night 10:00 PM - 6:00 AM</option>
+                </select>
+              </div>
 
-            <div style="padding: 0 10px 10px;">
-              <button class="btn-cancel" onclick="navigateTo('home')">Back to Home</button>
-            </div>
+              <div class="form-group">
+                <label class="form-label">Reason Notes</label>
+                <textarea class="form-textarea" id="request-notes" placeholder="Please provide details about your request..."></textarea>
+              </div>
+
+              <div class="form-actions">
+                <button type="button" class="btn-cancel" onclick="navigateTo('shift-requests')">Cancel</button>
+                <button type="submit" class="btn-save">Submit Request</button>
+              </div>
+            </form>
           </div>
         </div>
-      </div>
 
-      <!-- TIME ENTRY -->
-      <div id="time-entry-view" class="view">
-        <div class="content-wrapper">
-          <div class="time-entry-header">
-            <div class="time-entry-title">Add Time Off</div>
-          </div>
-
-          <div class="time-picker-display">
-            <div class="time-display-large" id="time-display">9:30</div>
-            <div class="period-selector">
-              <button class="period-btn active" onclick="togglePeriod(this, 'am')">am</button>
-              <button class="period-btn" onclick="togglePeriod(this, 'pm')">pm</button>
-            </div>
-          </div>
-
-          <div class="number-pad">
-            <div class="number-key" onclick="addNumber('1')">1</div>
-            <div class="number-key" onclick="addNumber('2')">2</div>
-            <div class="number-key" onclick="addNumber('3')">3</div>
-            <div class="number-key" onclick="addNumber('4')">4</div>
-            <div class="number-key" onclick="addNumber('5')">5</div>
-            <div class="number-key" onclick="addNumber('6')">6</div>
-            <div class="number-key" onclick="addNumber('7')">7</div>
-            <div class="number-key" onclick="addNumber('8')">8</div>
-            <div class="number-key" onclick="addNumber('9')">9</div>
-            <div class="number-key" onclick="addNumber('00')">00</div>
-            <div class="number-key" onclick="addNumber('0')">0</div>
-            <div class="number-key" onclick="addNumber(':')">:</div>
-          </div>
-
-          <div class="entry-actions">
-            <button class="btn-cancel" onclick="navigateTo('home')">Cancel</button>
-            <button class="btn-save" onclick="saveTime()">Save</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- SHIFT REQUESTS -->
-      <div id="shift-requests-view" class="view">
-        <div class="content-wrapper">
-          <div class="shift-requests-header">
-            <div class="shift-requests-title">Shift Requests</div>
-
-            <div class="request-type-tabs">
-              <div class="request-type-tab active" onclick="switchRequestTab('my-requests', this)">My Requests</div>
-              <div class="request-type-tab" onclick="switchRequestTab('team-requests', this)">Team Requests</div>
-            </div>
-
-            <button class="create-request-btn" onclick="showNewRequestForm()">
-              <span>+</span><span>Create New Request</span>
-            </button>
-
-            <button class="btn-cancel" onclick="navigateTo('home')">Back to Home</button>
-          </div>
-
-          <div id="my-requests-list" class="shift-request-list">
-            <div class="shift-request-item">
-              <div class="request-header">
-                <div class="request-type-label">Shift Swap Request</div>
-                <div class="request-status status-pending">Pending</div>
-              </div>
-              <div class="request-details">
-                <div class="request-detail-row"><span class="detail-label-req">Date:</span><span class="detail-value-req">June 5, 2026</span></div>
-                <div class="request-detail-row"><span class="detail-label-req">Original Shift:</span><span class="detail-value-req">8:00 AM - 4:00 PM</span></div>
-                <div class="request-detail-row"><span class="detail-label-req">Swap With:</span><span class="detail-value-req">Sarah Johnson</span></div>
-              </div>
-              <div class="request-notes">Need to attend a family event. Sarah has agreed to swap shifts.</div>
-              <div class="request-actions">
-                <button class="btn-action btn-view" onclick="viewRequestDetail('swap-1')">View Details</button>
-                <button class="btn-action btn-cancel-request" onclick="cancelRequest('swap-1')">Cancel</button>
-              </div>
-            </div>
-          </div>
-
-          <div id="team-requests-list" class="shift-request-list" style="display:none;">
-            <div class="shift-request-item">
-              <div class="request-header">
-                <div class="request-type-label">Coverage Needed - Mike Chen</div>
-                <div class="request-status status-pending">Open</div>
-              </div>
-              <div class="request-details">
-                <div class="request-detail-row"><span class="detail-label-req">Date:</span><span class="detail-value-req">May 29, 2026</span></div>
-                <div class="request-detail-row"><span class="detail-label-req">Shift:</span><span class="detail-value-req">10:00 AM - 6:00 PM</span></div>
-                <div class="request-detail-row"><span class="detail-label-req">Dept:</span><span class="detail-value-req">Pharmacy</span></div>
-              </div>
-              <div class="request-notes">Mike needs coverage for family matter. Overtime available.</div>
-              <div class="request-actions">
-                <button class="btn-action btn-view" style="background:#2e7d32;" onclick="pickupShift('team-coverage-1')">Pick Up Shift</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- NEW REQUEST -->
-      <div id="new-request-view" class="view">
-        <div class="content-wrapper">
-          <div class="shift-requests-header">
-            <div class="shift-requests-title">New Shift Request</div>
-            <button class="btn-cancel" onclick="navigateTo('shift-requests')">Back to Requests</button>
-          </div>
-
-          <form class="request-form" id="new-request-form" onsubmit="event.preventDefault(); submitNewRequest();">
-            <div class="form-group">
-              <label class="form-label">Request Type</label>
-              <select class="form-select" id="request-type">
-                <option value="">Select request type...</option>
-                <option value="time-off">Time Off Request</option>
-                <option value="shift-swap">Shift Swap</option>
-                <option value="coverage">Need Coverage</option>
-                <option value="schedule-change">Schedule Change</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Date</label>
-              <input type="date" class="form-input" id="request-date" value="2026-06-01" />
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Shift Time</label>
-              <select class="form-select" id="shift-time">
-                <option value="">Select shift...</option>
-                <option value="morning">Morning 6:00 AM - 2:00 PM</option>
-                <option value="day">Day 8:00 AM - 4:00 PM</option>
-                <option value="evening">Evening 2:00 PM - 10:00 PM</option>
-                <option value="night">Night 10:00 PM - 6:00 AM</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Reason Notes</label>
-              <textarea class="form-textarea" id="request-notes" placeholder="Please provide details about your request..."></textarea>
-            </div>
-
-            <div class="form-actions">
-              <button type="button" class="btn-cancel" onclick="navigateTo('shift-requests')">Cancel</button>
-              <button type="submit" class="btn-save">Submit Request</button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-    </div>
-  </div>
+      </div><!-- /view-container -->
+    </div><!-- /app-card -->
+  </div><!-- /mobile-container -->
 
   <script>
     let currentView = 'home';
     let navigationStack = [];
 
-    function navigateTo(view){
+    function navigateTo(view) {
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+
       if (currentView) navigationStack.push(currentView);
 
       const viewMap = {
@@ -610,44 +867,52 @@
       const targetView = viewMap[view] || 'home-view';
       document.getElementById(targetView).classList.add('active');
       currentView = view;
+
+      updateHeader(view);
+
+      const backBtn = document.getElementById('back-btn');
+      backBtn.style.display = (view !== 'home') ? 'inline-block' : 'none';
     }
 
-    function showMessage(message){ alert(message); }
+    function updateHeader(view) {
+      const title = document.getElementById('header-title');
+      const sub = document.getElementById('header-subtitle');
 
-    // Schedule helpers (kept from original)
-    function openShiftDetail(shiftId){
-      showMessage(
-        "Shift details (" + shiftId + ")\n\nIn the full app this would show:\n- Assigned coverage\n- Labor demand\n- Notes & handoff\n- Swap / call-out workflows"
-      );
+      const titles = {
+        'home': 'Shift Workflow',
+        'schedule': 'Schedule',
+        'timecard': 'Timecard',
+        'time-entry': 'Time Entry',
+        'shift-requests': 'Shift Requests',
+        'new-request': 'New Request'
+      };
+
+      title.textContent = titles[view] || 'Shift Workflow';
+      sub.textContent = (view === 'home') ? 'Embedded demo' : 'Back';
     }
 
-    function quickSwap(){
-      navigateTo('new-request');
-      setTimeout(() => {
-        document.getElementById('request-type').value = 'shift-swap';
-        document.getElementById('shift-time').value = 'day';
-        document.getElementById('request-notes').value =
-          "Requesting a swap for my scheduled shift. Preferred swap: Tue/Thu.";
-      }, 50);
+    function goBack() {
+      if (navigationStack.length > 0) {
+        const previousView = navigationStack.pop();
+        // prevent endless stack growth when going back
+        currentView = '';
+        navigateTo(previousView);
+      }
     }
 
-    function requestCoverage(){
-      navigateTo('new-request');
-      setTimeout(() => {
-        document.getElementById('request-type').value = 'coverage';
-        document.getElementById('shift-time').value = 'day';
-        document.getElementById('request-notes').value =
-          "Need coverage due to a personal conflict. Overtime coverage OK if available.";
-      }, 50);
+    document.getElementById('back-btn').addEventListener('click', goBack);
+
+    function showMessage(message) {
+      alert(message);
     }
 
-    // Shift Requests (kept)
-    function switchRequestTab(tab, el){
+    // Shift Requests
+    function switchRequestTab(tab, el) {
       const tabs = document.querySelectorAll('.request-type-tab');
       tabs.forEach(t => t.classList.remove('active'));
       if (el) el.classList.add('active');
 
-      if (tab === 'my-requests'){
+      if (tab === 'my-requests') {
         document.getElementById('my-requests-list').style.display = 'block';
         document.getElementById('team-requests-list').style.display = 'none';
       } else {
@@ -656,40 +921,44 @@
       }
     }
 
-    function showNewRequestForm(){ navigateTo('new-request'); }
+    function showNewRequestForm() {
+      navigateTo('new-request');
+    }
 
-    function viewRequestDetail(requestId){
+    function viewRequestDetail(requestId) {
       showMessage(
         "Viewing details for request: " + requestId +
         "\n\nIn the full application, this would show complete request details, history, and any related messages."
       );
     }
 
-    function cancelRequest(requestId){
-      if (confirm('Are you sure you want to cancel this request?')){
+    function cancelRequest(requestId) {
+      if (confirm('Are you sure you want to cancel this request?')) {
         showMessage(
           "Request " + requestId + " has been cancelled.\n\nThe system would notify all relevant parties and update your schedule."
         );
       }
     }
 
-    function pickupShift(shiftId){
-      if (confirm('Would you like to pick up this shift?')){
-        showMessage("Shift request submitted!\n\nYour manager will be notified and you'll receive a confirmation once approved.");
+    function pickupShift(shiftId) {
+      if (confirm('Would you like to pick up this shift?')) {
+        showMessage(
+          "Shift request submitted!\n\nYour manager will be notified and you'll receive a confirmation once approved."
+        );
       }
     }
 
-    function submitNewRequest(){
+    function submitNewRequest() {
       const requestType = document.getElementById('request-type').value;
       const requestDate = document.getElementById('request-date').value;
       const shiftTime = document.getElementById('shift-time').value;
+      const notes = document.getElementById('request-notes').value || '(none)';
 
-      if (!requestType || !requestDate || !shiftTime){
+      if (!requestType || !requestDate || !shiftTime) {
         alert('Please fill in all required fields.');
         return;
       }
 
-      const notes = document.getElementById('request-notes').value || '(none)';
       showMessage(
         "Request submitted successfully!\n\n" +
         "Type: " + requestType + "\n" +
@@ -703,12 +972,39 @@
       setTimeout(() => navigateTo('shift-requests'), 450);
     }
 
-    // Time entry keypad (kept)
+    // Schedule helpers
+    function openShiftDetail(shiftId) {
+      showMessage(
+        "Shift details (" + shiftId + ")\n\nIn the full app this would show:\n- Assigned coverage\n- Labor demand\n- Notes & handoff\n- Swap / call-out workflows"
+      );
+    }
+
+    function quickSwap() {
+      navigateTo('new-request');
+      setTimeout(() => {
+        document.getElementById('request-type').value = 'shift-swap';
+        document.getElementById('shift-time').value = 'day';
+        document.getElementById('request-notes').value =
+          "Requesting a swap for my scheduled shift. Preferred swap: Tue/Thu.";
+      }, 50);
+    }
+
+    function requestCoverage() {
+      navigateTo('new-request');
+      setTimeout(() => {
+        document.getElementById('request-type').value = 'coverage';
+        document.getElementById('shift-time').value = 'day';
+        document.getElementById('request-notes').value =
+          "Need coverage due to a personal conflict. Overtime coverage OK if available.";
+      }, 50);
+    }
+
+    // Time entry keypad
     let currentTime = '9:30';
     let currentPeriod = 'am';
 
-    function addNumber(num){
-      if (num === ':'){
+    function addNumber(num) {
+      if (num === ':') {
         if (!currentTime.includes(':')) currentTime += ':';
       } else {
         currentTime += num;
@@ -716,16 +1012,19 @@
       document.getElementById('time-display').textContent = currentTime;
     }
 
-    function togglePeriod(element, period){
+    function togglePeriod(element, period) {
       document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('active'));
       element.classList.add('active');
       currentPeriod = period;
     }
 
-    function saveTime(){
+    function saveTime() {
       showMessage(`Time saved: ${currentTime} ${currentPeriod}`);
       setTimeout(() => navigateTo('timecard'), 400);
     }
+
+    // Initialize header for home
+    updateHeader('home');
   </script>
 </body>
 </html>
